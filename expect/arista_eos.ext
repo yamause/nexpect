@@ -1,0 +1,58 @@
+#! /usr/bin/expect
+
+# Arista EOS expect !
+
+# TODO: 処理終了後に余計な文字が出力されるので修正必要。
+
+set user [lindex $argv 0]
+set host [lindex $argv 1]
+set pass [lindex $argv 2]
+set enable [lindex $argv 3]
+set command [lindex $argv 4]
+
+set commands [split "${command}" ,]
+set user_prompt ".+>$"
+set privilege_prompt ".+#$"
+
+# Login
+spawn -noecho /usr/bin/ssh "${user}@${host}"
+
+expect {
+  -re ".+Password: " {
+    send "${pass}\n"
+
+    expect {
+      -re "${user_prompt}" {
+        send "enable\n"
+
+        expect {
+          -re "${privilege_prompt}" {
+            send "terminal length 0\n"
+          }
+          -re "Password:" {
+          send "${enable}\n"
+          }
+        }
+      }
+      -re "Password:" {
+        puts stderr "login faild"
+        exit 1
+      }
+    }
+  }
+  -re "${privilege_prompt}" {
+    send "terminal length 0\n"
+  }
+}
+
+# Send Command
+foreach cmd "${commands}" {
+  expect {
+    -re "${privilege_prompt}" {
+      send "${cmd}\n"
+    }
+  }
+}
+
+expect -re "${privilege_prompt}" { exit 0 }
+
